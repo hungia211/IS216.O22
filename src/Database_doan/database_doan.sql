@@ -546,3 +546,426 @@ BEGIN
   WHERE MaKH = :NEW.MaKH;
 END;
 /
+
+
+-- Kiểm tra tuổi khách hàng phải trên 18 tuổi
+CREATE OR REPLACE TRIGGER Check_TuoiKhachHang
+BEFORE INSERT ON KHACHHANG
+FOR EACH ROW
+DECLARE
+    customer_age NUMBER;
+BEGIN
+    -- Tính tuổi của khách hàng từ ngày sinh
+    customer_age := TRUNC(MONTHS_BETWEEN(SYSDATE, :NEW.NgaySinh) / 12);
+
+    -- Kiểm tra tuổi của khách hàng
+    IF customer_age < 18 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Khách hàng phải đủ 18 tuổi trở lên.');
+    END IF;
+END;
+/
+
+-- Kiểm tra thời gian 
+CREATE OR REPLACE TRIGGER Check_ThoiGianLapHopDong
+BEFORE INSERT OR UPDATE ON HOPDONG
+FOR EACH ROW
+BEGIN
+  IF :NEW.TGTraPhong <= :NEW.TGNhanPhong THEN
+    RAISE_APPLICATION_ERROR(-20001, 'Thời gian trả phòng phải sau thời gian nhận phòng.');
+  END IF;
+END;
+/
+
+
+
+
+
+
+
+--========================================= PROCEDURE =======================================
+
+-- Procedure: Them_khachhang
+CREATE OR REPLACE PROCEDURE Them_khachhang(
+    p_TenKH NVARCHAR2,
+    p_CCCD CHAR,
+    p_NgaySinh DATE,
+    p_GioiTinh NVARCHAR2,
+    p_DiaChi NVARCHAR2,
+    p_SDT CHAR
+) IS
+BEGIN
+    INSERT INTO KHACHHANG (MaKH, TenKH, CCCD, NgaySinh, GioiTinh, DiaChi, SDT, SoHopDong)
+    VALUES (KhachHang_Seq.NEXTVAL, p_TenKH, p_CCCD, p_NgaySinh, p_GioiTinh, p_DiaChi, p_SDT, 0);
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Có lỗi xảy ra trong quá trình thêm khách hàng.');
+END Them_khachhang;
+/
+
+
+-- Procedure: Them_nhanvien
+CREATE OR REPLACE PROCEDURE Them_nhanvien(
+    p_TenNV NVARCHAR2,
+    p_CCCD CHAR,
+    p_NgaySinh DATE,
+    p_GioiTinh NVARCHAR2,
+    p_DiaChi NVARCHAR2,
+    p_SDT CHAR,
+    p_LoaiNV NVARCHAR2,
+    p_LuongCB NUMBER
+) IS
+BEGIN
+    INSERT INTO NHANVIEN (MaNV, TenNV, CCCD, NgaySinh, GioiTinh, DiaChi, SDT, LoaiNV, LuongCB)
+    VALUES (NhanVien_Seq.NEXTVAL, p_TenNV, p_CCCD, p_NgaySinh, p_GioiTinh, p_DiaChi, p_SDT, p_LoaiNV, p_LuongCB);
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20005, 'Có lỗi xảy ra trong quá trình thêm nhân viên.');
+END Them_nhanvien;
+/
+
+
+-- Procedure: Them_phong
+CREATE OR REPLACE PROCEDURE Them_phong(
+    p_LoaiPhong VARCHAR2,
+    p_KieuPhong VARCHAR2,
+    p_Gia NUMBER
+) IS
+BEGIN
+    INSERT INTO PHONG (MaPhong, LoaiPhong, KieuPhong, Gia)
+    VALUES (Phong_Seq.NEXTVAL, p_LoaiPhong, p_KieuPhong, p_Gia);
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20006, 'Có lỗi xảy ra trong quá trình thêm phòng.');
+END Them_phong;
+/
+
+
+-- Procedure: Them_khuyenmai
+CREATE OR REPLACE PROCEDURE Them_khuyenmai(
+    p_TenKM NVARCHAR2,
+    p_MoTaKM NVARCHAR2,
+    p_NgayBatDau DATE,
+    p_NgayKetThuc DATE,
+    p_PhanTramKM NUMERIC
+)
+IS
+BEGIN
+    -- Kiểm tra ngày bắt đầu và ngày kết thúc
+    IF p_NgayKetThuc < p_NgayBatDau THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Ngày kết thúc không thể trước ngày bắt đầu');
+    END IF;
+
+    -- Thêm khuyến mãi
+    INSERT INTO KHUYENMAI (MaKM, TenKM, MoTaKM, NgayBatDau, NgayKetThuc, PhanTramKM)
+    VALUES (KhuyenMai_Seq.NEXTVAL, p_TenKM, p_MoTaKM, p_NgayBatDau, p_NgayKetThuc, p_PhanTramKM);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Có lỗi xảy ra trong quá trình thêm khuyến mãi.');
+END Them_khuyenmai;
+/
+
+
+-- Procedure: Them_trangbi
+CREATE OR REPLACE PROCEDURE Them_trangbi(
+    p_TenTB NVARCHAR2,
+    p_GiaTB NUMBER,
+    p_SoLuong INT
+)
+IS
+BEGIN
+    -- Thêm trang bị
+    INSERT INTO TRANGBI (MaTB, TenTB, GiaTB, SoLuong, SLHong)
+    VALUES (TrangBi_Seq.NEXTVAL, p_TenTB, p_GiaTB, p_SoLuong, 0);
+  
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Có lỗi xảy ra trong quá trình thêm trang bị.');
+END Them_trangbi;
+/
+
+
+-- Procedure: Capnhat_sltrangbihong
+CREATE OR REPLACE PROCEDURE Capnhat_sltrangbihong(
+    P_MaTB NUMBER,
+    p_SLHong INT
+)
+IS
+    v_CurrentHong INT;
+    v_soluongtb INT;
+BEGIN
+    -- Lấy số lượng trang bị hiện tại của khách sạn
+    SELECT SLHong INTO v_CurrentHong
+    FROM TRANGBI
+    WHERE MaTB = P_MaTB;
+
+    SELECT soluong INTO v_soluongtb
+    FROM TRANGBI
+    WHERE MaTB = P_MaTB;
+
+    -- Kiểm tra và cập nhật số lượng trang bị hỏng
+    IF v_CurrentHong + p_SLHong <= v_soluongtb THEN
+        UPDATE TRANGBI
+        SET SLHong = v_CurrentHong + p_SLHong
+        WHERE MaTB = P_MaTB;
+    ELSE
+        RAISE_APPLICATION_ERROR(-20003, 'Số lượng trang bị hỏng không thể lớn hơn số lượng trang bị.');
+    END IF;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Trang bị không tồn tại.');
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Có lỗi xảy ra trong quá trình cập nhật.');
+END Capnhat_sltrangbihong;
+/
+
+
+-- Procedure: Xoa_nhanvien
+CREATE OR REPLACE PROCEDURE Xoa_nhanvien(
+    P_MaNV NUMBER
+)
+IS
+BEGIN
+    -- Cập nhật tình trạng nhân viên
+    UPDATE NHANVIEN
+    SET TinhTrang = 'Nghỉ làm'
+    WHERE MaNV = P_MaNV;
+
+    -- Kiểm tra xem có cập nhật thành công
+    IF SQL%ROWCOUNT = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Nhân viên không tồn tại.');
+    ELSE
+        -- Xóa dữ liệu chấm công của nhân viên
+        DELETE FROM CHAMCONG
+        WHERE MaNV = P_MaNV;
+    END IF;
+END Xoa_nhanvien;
+/
+
+
+-- Procedure: Xoa_trangbi
+CREATE OR REPLACE PROCEDURE Xoa_trangbi(
+    P_MaTB NUMBER
+)
+IS
+BEGIN
+    -- Xóa dữ liệu hỏng trang bị liên quan
+    DELETE FROM HONGTRANGBI
+    WHERE MaTB = P_MaTB;
+
+    -- Xóa trang bị
+    DELETE FROM TRANGBI
+    WHERE MaTB = P_MaTB;
+
+    -- Kiểm tra xóa thành công không
+    IF SQL%ROWCOUNT = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Xóa không thành công.');
+    END IF;
+
+    -- Xác nhận thay đổi
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- ROLLBACK nếu có lỗi xảy ra
+        ROLLBACK;
+        RAISE;
+END Xoa_trangbi;
+/
+
+
+-- Procedure: Xoa_hopdong
+CREATE OR REPLACE PROCEDURE Xoa_hopdong(
+    p_MaHopDong NUMBER
+)
+IS
+    v_MaKH NUMBER;
+    v_countHopDong NUMBER;
+BEGIN
+    -- Lấy mã khách hàng từ trong hợp đồng
+    SELECT MaKH INTO v_MaKH
+    FROM HOPDONG
+    WHERE MaHopDong = p_MaHopDong;
+
+    -- Xóa chi tiết đặt phòng liên quan
+    DELETE FROM CHITIETDATPHONG
+    WHERE MaHopDong = p_MaHopDong;
+
+    -- Xóa hợp đồng
+    DELETE FROM HOPDONG
+    WHERE MaHopDong = p_MaHopDong;
+
+    -- Kiểm tra xóa thành công không
+    v_countHopDong := SQL%ROWCOUNT;
+
+    -- Kiểm tra nếu hợp đồng đã xóa thành công
+    IF v_countHopDong > 0 THEN
+        UPDATE KHACHHANG
+        SET SoHopDong = SoHopDong - 1
+        WHERE MaKH = v_MaKH;
+
+        -- Xóa khách hàng nếu không còn hợp đồng
+        DELETE FROM KHACHHANG
+        WHERE MaKH = v_MaKH AND SoHopDong = 0;
+    ELSE
+        RAISE_APPLICATION_ERROR(-20002, 'Không thể xóa hợp đồng.');
+    END IF;
+
+    -- Xác nhận thay đổi
+    COMMIT;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Hợp đồng không tồn tại');
+    WHEN OTHERS THEN
+        -- ROLLBACK nếu có lỗi xảy ra
+        ROLLBACK;
+        RAISE;
+END Xoa_hopdong;
+/
+
+
+-- Procedure: Capnhat_trangbi
+CREATE OR REPLACE PROCEDURE Capnhat_trangbi(
+    p_MaTB NUMBER,
+    p_TenTB NVARCHAR2,
+    p_GiaTB NUMBER,
+    p_SoLuong INT,
+    p_SoLuongHong INT
+)
+IS
+BEGIN
+    -- Cập nhật thông tin trang bị
+    UPDATE TRANGBI
+    SET TenTB = p_TenTB,
+        GiaTB = p_GiaTB,
+        SoLuong = p_SoLuong,
+        SLHong = p_SoLuongHong
+    WHERE MaTB = p_MaTB;
+
+    -- Kiểm tra cập nhật thành công không
+    IF SQL%ROWCOUNT = 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Đã có lỗi xảy ra trong quá trình cập nhật trang bị.');
+    END IF;
+
+    -- Xác nhận thay đổi
+    COMMIT;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Trang bị không tồn tại.');
+    WHEN OTHERS THEN
+        -- ROLLBACK nếu có lỗi xảy ra
+        ROLLBACK;
+        RAISE;
+END Capnhat_trangbi;
+/
+
+
+-- Procedure: Kiemtra_cccd
+CREATE OR REPLACE PROCEDURE Kiemtra_cccd(
+    P_cccd CHAR,
+    P_MaKH OUT NUMBER
+)
+IS
+BEGIN
+    -- Kiểm tra CCCD và lấy mã khách hàng
+    SELECT MaKH INTO P_MaKH
+    FROM KHACHHANG
+    WHERE CCCD = P_cccd;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        P_MaKH := NULL;
+END Kiemtra_cccd;
+/
+
+
+-- Procedure: Themhopdong
+CREATE OR REPLACE PROCEDURE Themhopdong(
+    P_MaKH NUMBER,
+    P_TGNhanPhong TIMESTAMP,
+    P_TGTraPhong TIMESTAMP,
+    P_SoNguoiLon NUMBER,
+    P_SoTreEm NUMBER,
+    P_TinhTrangHD NVARCHAR2,
+    P_HinhThucThue NVARCHAR2, 
+    P_TriGiaHD NUMBER
+)
+IS
+    v_MaHopDong NUMBER;
+BEGIN
+    -- Thêm mới hợp đồng
+    INSERT INTO HOPDONG (MaKH, NgayLapHopDong, TGNhanPhong, TGTraPhong, SoNguoiLon, SoTreEm, TinhTrangHD, HinhThucThue, TriGiaHD)
+    VALUES (P_MaKH, SYSDATE, P_TGNhanPhong, P_TGTraPhong, P_SoNguoiLon, P_SoTreEm, P_TinhTrangHD, P_HinhThucThue, P_TriGiaHD)
+    RETURNING MaHopDong INTO v_MaHopDong;
+
+    -- Xác nhận thay đổi
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Hoàn tác các thay đổi nếu có lỗi
+        ROLLBACK;
+        RAISE;
+END Themhopdong;
+/
+
+
+-- Procedure: Them_chitietdatphong
+CREATE OR REPLACE PROCEDURE Them_chitietdatphong(
+    P_MaHopDong NUMBER,
+    P_MaPhong NUMBER
+)
+IS
+BEGIN
+    -- Thêm mới chi tiết đặt phòng
+    INSERT INTO CHITIETDATPHONG (MaHopDong, MaPhong)
+    VALUES (P_MaHopDong, P_MaPhong);
+
+    -- Xác nhận các thay đổi
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Hoàn tác các thay đổi nếu có lỗi
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20001, 'Lỗi khi thêm chi tiết đặt phòng: ' || SQLERRM);
+END Them_chitietdatphong;
+/
+
+
+-- Procedure: Capnhat_tthopdong
+CREATE OR REPLACE PROCEDURE Capnhat_tthopdong (
+    P_MaHopDong NUMBER,
+    P_TinhTrang NVARCHAR2
+)
+AS
+BEGIN
+    -- Cập nhật tình trạng hợp đồng
+    UPDATE HopDong
+    SET TinhTrangHD = P_TinhTrang
+    WHERE MaHopDong = P_MaHopDong;
+    
+    -- Xác nhận thay đổi
+    COMMIT;
+END Capnhat_tthopdong;
+/
+
+-- Procedure: Them_hongtrangbi
+CREATE OR REPLACE PROCEDURE Them_hongtrangbi (
+    P_MaTB NUMBER,
+    P_MaHD NUMBER
+)
+IS
+BEGIN
+    -- Thêm dữ liệu vào bảng HONGTRANGBI
+    INSERT INTO HONGTRANGBI (MaTB, MaHD)
+    VALUES (P_MaTB, P_MaHD);
+
+    -- Xác nhận thay đổi
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Xử lý lỗi khi không thể thêm vào bảng
+        RAISE_APPLICATION_ERROR(-20001, 'Lỗi khi thêm vào bảng HONGTRANGBI: ' || SQLERRM);
+END Them_hongtrangbi;
+/
+
+
