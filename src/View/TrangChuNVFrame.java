@@ -369,6 +369,7 @@ public class TrangChuNVFrame extends javax.swing.JFrame {
 
         soKHtrongThangjButton.setBackground(new java.awt.Color(24, 24, 68));
         soKHtrongThangjButton.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        soKHtrongThangjButton.setForeground(new java.awt.Color(255, 255, 255));
         soKHtrongThangjButton.setText("Xuất file excel");
         soKHtrongThangjButton.setToolTipText("");
         soKHtrongThangjButton.addActionListener(new java.awt.event.ActionListener() {
@@ -379,6 +380,7 @@ public class TrangChuNVFrame extends javax.swing.JFrame {
 
         soHopDongjButton.setBackground(new java.awt.Color(24, 24, 68));
         soHopDongjButton.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        soHopDongjButton.setForeground(new java.awt.Color(255, 255, 255));
         soHopDongjButton.setText("Xuất file excel");
         soHopDongjButton.setToolTipText("");
         soHopDongjButton.addActionListener(new java.awt.event.ActionListener() {
@@ -389,6 +391,7 @@ public class TrangChuNVFrame extends javax.swing.JFrame {
 
         doanhThuThangjButton.setBackground(new java.awt.Color(24, 24, 68));
         doanhThuThangjButton.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        doanhThuThangjButton.setForeground(new java.awt.Color(255, 255, 255));
         doanhThuThangjButton.setText("Xuất file excel");
         doanhThuThangjButton.setToolTipText("");
         doanhThuThangjButton.addActionListener(new java.awt.event.ActionListener() {
